@@ -7,7 +7,9 @@ struct memory_struct{
 	char *value;
 };
 
-struct memory_struct shellmemory[1000];
+#define MEM_SIZE 1000
+
+struct memory_struct shellmemory[MEM_SIZE];
 
 // Helper functions
 int match(char *model, char *var) {
@@ -37,7 +39,7 @@ char *extract(char *model) {
 void mem_init(){
 
 	int i;
-	for (i=0; i<1000; i++){		
+	for (i=0; i<MEM_SIZE; i++){		
 		shellmemory[i].var = "none";
 		shellmemory[i].value = "none";
 	}
@@ -60,37 +62,38 @@ void mem_clear(char start[], int length) {
 }
 
 // Set key value pair
-void mem_set_value(char *var_in, char *value_in) {
+int mem_set_value(char *var_in, char *value_in) {
 	
 	int i;
 
-	for (i=0; i<1000; i++){
+	for (i=0; i<MEM_SIZE; i++){
 		if (strcmp(shellmemory[i].var, var_in) == 0){
 			shellmemory[i].value = strdup(value_in);
-			return;
+			return 0;
 		} 
 	}
 
 	//Value does not exist, need to find a free spot.
-	for (i=0; i<1000; i++){
+	for (i=0; i<MEM_SIZE; i++){
 		if (strcmp(shellmemory[i].var, "none") == 0){
 			shellmemory[i].var = strdup(var_in);
 			shellmemory[i].value = strdup(value_in);
-			return;
+			return 0;
 		} 
 	}
 
-	return;
+	printf("%s\n", "Code loading error");
+	return 1;
 
 }
 
 void print_mem() {
 	puts("MEMORY IS CURRENTLY: ");
-	for (int i = 0; i<50; i++){
+	for (int i = 0; i<MEM_SIZE; i++){
 		printf("key is: %s\n", shellmemory[i].var);
 		printf("value is: %s\n", shellmemory[i].value);
 	}
-	puts("FINISHED PRINTING MEMORY\n\n");
+	puts("FINISHED PRINTING MEMORY\n");
 	return;
 }
 
@@ -98,7 +101,7 @@ void print_mem() {
 char *mem_get_value(char *var_in) {
 	int i;
 
-	for (i=0; i<1000; i++){
+	for (i=0; i<MEM_SIZE; i++){
 		if (strcmp(shellmemory[i].var, var_in) == 0){
 			return strdup(shellmemory[i].value);
 		} 

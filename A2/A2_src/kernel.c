@@ -77,9 +77,10 @@ void rq_init() {
 
 void scheduler(int arg_size, char* scripts[], char policy[]) {
 
+    //print_mem();
+
     // start clean
     rq_init();
-    //print_rq(3);
     PCBs_init();
 
     int i;
@@ -88,8 +89,6 @@ void scheduler(int arg_size, char* scripts[], char policy[]) {
     } else {
         i = arg_size;
     }
-
-    //print_mem();
 
     for (int k=1; k<i; k++) {
 
@@ -115,7 +114,13 @@ void scheduler(int arg_size, char* scripts[], char policy[]) {
         strcat(var, "Line");
         strcat(var, lineNumStr); 
         char *value = line;
-        mem_set_value(var, value);
+
+        // deal with code loading errors
+        int errorCode = mem_set_value(var, value);
+
+        if (errorCode) {
+            return;
+        }
 
         char start[MAX_USER_INPUT]; // holds key of first line
         strcpy(start, var);
@@ -134,8 +139,13 @@ void scheduler(int arg_size, char* scripts[], char policy[]) {
             strcat(var, "Line");
             strcat(var, lineNumStr); 
             char *value = line;
-            mem_set_value(var, value);
 
+            // deal with code loading errors
+            errorCode = mem_set_value(var, value);
+
+            if (errorCode) {
+                return;
+            }
             memset(line, 0, sizeof(line));
             memset(var, 0, sizeof(var));
 

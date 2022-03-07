@@ -132,6 +132,12 @@ int interpreter(char* command_args[], int args_size){
 				return badcommand();
 			}
 		} else if (args_size == 4) { // exec 2 programs
+
+			if (strcmp(command_args[1], command_args[2]) == 0){
+				printf("%s\n", "Bad command: same file name");
+				return 1;
+			}
+
 			if (strcmp(command_args[3], "FCFS") == 0) {
 				scheduler(args_size, command_args, "FCFS");
 			} else if (strcmp(command_args[3], "SJF") == 0) {
@@ -144,6 +150,18 @@ int interpreter(char* command_args[], int args_size){
 				return badcommand();
 			}
 		} else if (args_size == 5) { // exec 3 programs
+
+			if (strcmp(command_args[1], command_args[2]) == 0){
+				printf("%s\n", "Bad command: same file name");
+				return 1;
+			} else if (strcmp(command_args[2], command_args[3]) == 0){
+				printf("%s\n", "Bad command: same file name");
+				return 1;
+			} else if (strcmp(command_args[1], command_args[3]) == 0){
+				printf("%s\n", "Bad command: same file name");
+				return 1;
+			}
+
 			if (strcmp(command_args[4], "FCFS") == 0) {
 				scheduler(args_size, command_args, "FCFS");
 			} else if (strcmp(command_args[4], "SJF") == 0) {
@@ -237,7 +255,7 @@ int my_ls() {
 int run(int args_size, char* scripts[]) {
 	int errCode = 0;
 
-	scheduler(args_size, scripts, "run");
+	errCode = scheduler(args_size, scripts, "run");
 
 	return errCode;
 }

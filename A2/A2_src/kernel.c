@@ -22,6 +22,18 @@ int RQ[PCB_NUM];
 int current_pid; 
 
 char* RemoveDigits(char* input);
+void bubbleSortLength(int array[], int size);
+void bubbleSortScore(int array[], int size);
+void runStatic(int size);
+void runRR(int size);
+void runAGING(int size);
+int get_current_rq_size();
+int process_done(int i);
+void run_command(int i, int size);
+int rq_isempty(int size);
+void clean(struct PCB pcb);
+void age_rq(int size);
+void mem_clear(char start[], int length);
 
 void PCBs_init(){
     
@@ -75,7 +87,7 @@ void rq_init() {
     }
 }
 
-void scheduler(int arg_size, char* scripts[], char policy[]) {
+int scheduler(int arg_size, char* scripts[], char policy[]) {
 
     //print_mem();
 
@@ -97,7 +109,8 @@ void scheduler(int arg_size, char* scripts[], char policy[]) {
 	    FILE *p = fopen(scripts[k],"rt");  // the program is in a file
 
 	    if(p == NULL){
-		    return badcommandFileDoesNotExist();
+            printf("%s\n", "Bad command: File not found");
+		    return 1;
 	    }
 
         // for PCB
@@ -119,7 +132,7 @@ void scheduler(int arg_size, char* scripts[], char policy[]) {
         int errorCode = mem_set_value(var, value);
 
         if (errorCode) {
-            return;
+            return 1;
         }
 
         char start[MAX_USER_INPUT]; // holds key of first line
@@ -144,7 +157,7 @@ void scheduler(int arg_size, char* scripts[], char policy[]) {
             errorCode = mem_set_value(var, value);
 
             if (errorCode) {
-                return;
+                return errorCode;
             }
             memset(line, 0, sizeof(line));
             memset(var, 0, sizeof(var));
@@ -196,6 +209,8 @@ void scheduler(int arg_size, char* scripts[], char policy[]) {
     } else if (strcmp(policy, "run") == 0) {
         runStatic(arg_size-1);
     }
+
+    return 1;
 
 }
 
@@ -367,6 +382,7 @@ void bubbleSortScore(int array[], int size) {
     }
 }
 
+/*
 // helper
 char* RemoveDigits(char* input) {
     char* dest = input;
@@ -380,6 +396,7 @@ char* RemoveDigits(char* input) {
     *dest = '\0';
     return input;
 }
+*/
 
 void clean(struct PCB pcb) {
 

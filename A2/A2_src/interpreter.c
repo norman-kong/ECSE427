@@ -17,6 +17,7 @@ int print(char* var);
 int my_ls();
 int run(int args_size, char* scripts[]);
 int badcommandFileDoesNotExist();
+int scheduler(int arg_size, char* scripts[], char policy[]);
 
 #define MAX_USER_INPUT 1000
 

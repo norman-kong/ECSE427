@@ -10,9 +10,10 @@ struct PCB {
     char start[100]; // "var" (key) of where first line is stored in mem
     int length; // # of lines the program is
 	int pc; // current instruction to execute
+    int jLengthScore; // job length score
 };
 
-#define PCB_NUM 100
+#define PCB_NUM 3
 #define MAX_USER_INPUT 1000
 
 struct PCB PCBs[PCB_NUM];
@@ -29,6 +30,7 @@ void PCBs_init(){
         strcpy(PCBs[i].start, "none");
 		PCBs[i].length = 0;
         PCBs[i].pc = -1;
+        PCBs[i].jLengthScore = 0;
 	} 
 
     current_pid = 1;
@@ -37,16 +39,16 @@ void PCBs_init(){
 
 void print_all_pcbs(){
     for (int i=0; i<2; i++) { // search all PCBs
-        printf("pid: %d\nstart: %s\nlength: %d\npc: %d\n", 
-        PCBs[i].pid, PCBs[i].start, PCBs[i].length, PCBs[i].pc);
+        printf("pid: %d\nstart: %s\nlength: %d\npc: %d\njLengthScore: %d\n", 
+        PCBs[i].pid, PCBs[i].start, PCBs[i].length, PCBs[i].pc, PCBs[i].jLengthScore);
     }
 }
 
 void print_pcb(int pid) {
     for (int i=0; i<PCB_NUM; i++) { // search all PCBs
         if (pid == PCBs[i].pid) {
-            printf("pid: %d\nstart: %s\nlength: %d\npc: %d\n", 
-            PCBs[i].pid, PCBs[i].start, PCBs[i].length, PCBs[i].pc);
+            printf("pid: %d\nstart: %s\nlength: %d\npc: %d\njLengthScore: %d\n", 
+            PCBs[i].pid, PCBs[i].start, PCBs[i].length, PCBs[i].pc, PCBs[i].jLengthScore);
             break;
         }
     }
@@ -60,19 +62,25 @@ void create_pcb(char *start, int length) {
             strcpy(PCBs[i].start, start); 
             PCBs[i].length = length;
             PCBs[i].pc = 1;
+            PCBs[i].jLengthScore = length;
             break;
         }
     }
     current_pid++; 
 }
 
-void init_rq() {
+void rq_init() {
     for (int i=0; i<PCB_NUM; i++) { 
         RQ[i] = -1;
     }
 }
 
 void scheduler(int arg_size, char* scripts[], char policy[]) {
+
+    // start clean
+    rq_init();
+    //print_rq(3);
+    PCBs_init();
 
     int i;
     if (arg_size > 2) { // command is "exec", so skip the last argument
@@ -148,35 +156,55 @@ void scheduler(int arg_size, char* scripts[], char policy[]) {
 
     //print_mem();
 
-    int j = 0; // tracker for RQ
+    int j = 0; // tracker for RQ (num of elements initially in RQ)
     
     // Populate RQ (default: the order in which they were processed)
     for (int i=0; i<PCB_NUM; i++) { 
-            if (PCBs[i].pid != -1) {
-                RQ[j] = i;
-                j++;
-            }
+        if (PCBs[i].pid != -1) {
+            RQ[j] = i;
+            j++;
+        } 
     }
+
+    //print_rq(3);
+    //print_all_pcbs();
+    //print_mem();
+
+    //print_rq(get_current_rq_size());
 
     // run processes
     if (strcmp(policy, "FCFS") == 0) {
         runStatic(arg_size-2);
     } else if (strcmp(policy, "SJF") == 0) {
-        bubbleSort(RQ, j); // sort RQ
+        bubbleSortLength(RQ, j); // sort RQ
         runStatic(arg_size-2);
     } else if (strcmp(policy, "RR") == 0) {
         runRR(arg_size-2);
+    } else if (strcmp(policy, "AGING") == 0) {
+        bubbleSortScore(RQ, get_current_rq_size());
+        runAGING(arg_size-2);
+    } else if (strcmp(policy, "run") == 0) {
+        runStatic(arg_size-1);
     }
 
 }
 
 // size is the number of elements in the RQ
 void runStatic(int size) {
+
+    //printf("current size is: %d\n", get_current_rq_size());
+    //print_rq(get_current_rq_size());
+
+    //print_pcb(1);
+    //printf("process is: %d\n", PCBs[RQ[0]].length);
+
     for (int i=0; i<size; i++) { // complete each job in RQ
         
         // run processes
         while (!process_done(RQ[i])) {
-            run_command(i); // run 1 command
+            
+            //puts("HERE");
+            run_command(i, size); 
         }
         //print_mem();
         clean(PCBs[RQ[i]]);
@@ -195,10 +223,10 @@ void runRR(int size) {
 
             if (!process_done(RQ[i])) {
                 //printf("working on process: %s\n", PCBs[RQ[i]].start);
-                run_command(i);
+                run_command(i, size);
 
                 if (!process_done(RQ[i])) {
-                    run_command(i); 
+                    run_command(i, size); 
                 } else {
                     clean(PCBs[RQ[i]]);
                     RQ[i] = -1;
@@ -213,9 +241,42 @@ void runRR(int size) {
     //print_mem();
 }
 
+void runAGING(int size) {
+
+    while (!rq_isempty(size)) {
+
+        //print_AGING(get_current_rq_size());
+
+        if (process_done(RQ[0])) {
+            clean(PCBs[RQ[0]]);
+            RQ[0] = -1;
+            bubbleSortScore(RQ, size); // sort RQ
+        } else {
+            //printf("working on process: %d\n", RQ[0]);
+            run_command(0, size);
+            // AGE ALL PROCESSES
+            age_rq(get_current_rq_size());
+            bubbleSortScore(RQ, size); // sort RQ
+        }
+    }
+
+    //print_mem();
+}
+
+// get num of elements in RQ
+int get_current_rq_size() {
+    int size = 0;
+    for (int i=0; i<PCB_NUM; i++) {
+        if (RQ[i] != -1) {
+            size++;
+        }
+    }
+    return size;
+}
 
 // i is index in RQ 
-void run_command(int i) {
+// size is number of elements in RQ
+void run_command(int i, int size) {
 
     // CONSTRUCT KEY 
     char key[100];
@@ -237,6 +298,20 @@ void run_command(int i) {
     //printf("command is: %s\n", mem_get_value(key));
     parseInput(mem_get_value(key)); // sends line to interpreter
     PCBs[RQ[i]].pc++; // go to next line
+
+}
+
+// size is number of elements in RQ
+void age_rq(int size) {
+
+    for (int i=1; i<size; i++) {
+
+        if (PCBs[RQ[i]].jLengthScore <= 0) {
+            continue;
+        } else {
+            PCBs[RQ[i]].jLengthScore--;
+        }
+    }
 }
 
 // checks if PCBs[i] is complete
@@ -245,7 +320,7 @@ int process_done(int i) { // takes PCB index
 }
 
 // perform the bubble sort (ascending order) on RQ
-void bubbleSort(int array[], int size) {
+void bubbleSortLength(int array[], int size) {
 
     // iterate through each element
     for (int i = 0; i < size - 1; ++i) {
@@ -255,6 +330,25 @@ void bubbleSort(int array[], int size) {
       
             // compare two adjacent elements
             if (PCBs[array[j]].length > PCBs[array[j + 1]].length) { // swap 
+                int temp = array[j];
+                array[j] = array[j + 1];
+                array[j + 1] = temp;
+            }
+        }
+    }
+}
+
+// perform the bubble sort (ascending order) on RQ
+void bubbleSortScore(int array[], int size) {
+
+    // iterate through each element
+    for (int i = 0; i < size - 1; ++i) {
+      
+        // for each element, compare to every other element
+        for (int j = 0; j < size - i - 1; ++j) {
+      
+            // compare two adjacent elements
+            if (PCBs[array[j]].jLengthScore > PCBs[array[j + 1]].jLengthScore) { // swap 
                 int temp = array[j];
                 array[j] = array[j + 1];
                 array[j + 1] = temp;
@@ -298,6 +392,13 @@ void print_rq(int size) {
     puts("RQ IS: \n");
     for (int i=0; i<size; i++) {
         printf("element %d: %d\n", i, RQ[i]);
+    }
+}
+
+void print_AGING(int size) {
+    puts("RQ IS: \n");
+    for (int i=0; i<size; i++) {
+        printf("element %d: %d, score: %d\n", i, RQ[i], PCBs[RQ[i]].jLengthScore);
     }
 }
 

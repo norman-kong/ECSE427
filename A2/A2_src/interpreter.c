@@ -138,6 +138,8 @@ int interpreter(char* command_args[], int args_size){
 				scheduler(args_size, command_args, "SJF");
 			} else if (strcmp(command_args[3], "RR") == 0) {
 				scheduler(args_size, command_args, "RR");
+			} else if (strcmp(command_args[3], "AGING") == 0) {
+				scheduler(args_size, command_args, "AGING");
 			} else {
 				return badcommand();
 			}
@@ -148,6 +150,8 @@ int interpreter(char* command_args[], int args_size){
 				scheduler(args_size, command_args, "SJF");
 			} else if (strcmp(command_args[4], "RR") == 0) {
 				scheduler(args_size, command_args, "RR");
+			} else if (strcmp(command_args[4], "AGING") == 0) {
+				scheduler(args_size, command_args, "AGING");
 			} else {
 				return badcommand();
 			}
@@ -233,7 +237,7 @@ int my_ls() {
 int run(int args_size, char* scripts[]) {
 	int errCode = 0;
 
-	scheduler(args_size, scripts, "placeholder");
+	scheduler(args_size, scripts, "run");
 
 	return errCode;
 }

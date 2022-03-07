@@ -27,6 +27,7 @@ int main(int argc, char *argv[]) {
 	
 	mem_init(); //init shell memory
 	PCBs_init(); //init PCBs
+	rq_init(); 
 
 	while(1) {							
 		printf("%c ",prompt);

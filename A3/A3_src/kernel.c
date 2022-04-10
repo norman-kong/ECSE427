@@ -184,15 +184,28 @@ int scheduler(int arg_size, char* scripts[], char policy[]) {
                 int pagetable[10] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
                 int counter = 0; 
 
-                while (!feof(p)) { // there is at least 1 line 
+                //while (!feof(p)) { // there is at least 1 line 
+
+                int linesRemain;
+                int pages_loaded = 0;
+
+                if (feof(p)) {
+                    linesRemain = 0;
+                } else {
+                    linesRemain = 1;
+                }
+
+                while (linesRemain && pages_loaded < 2) {
 
                     int frame = find_available_frame();
+                    pages_loaded++;
+
                     //printf("FRAME IS: %d\n", frame);
 
                     for (int j=0; j<3; j++) {
 
-                        if (feof(p)) { // we have reached the end of the file, fill the rest of the frame
-                                
+                        if (feof(p)) { // we have reached the end of the file, fill the rest of the frame with whatever
+                            linesRemain = 0;    
                             for (int k=j + (frame*3); k<(frame+1)*3; k++) {
                                 mem_set_val2("", "", k);
                             }
@@ -209,6 +222,7 @@ int scheduler(int arg_size, char* scripts[], char policy[]) {
                             strcat(var, lineNumStr); 
                             char *value = line;
 
+                            // just saving start value
                             if (first_iteration) {
                                 first_iteration = 0;
                                 strcpy(start, var);
@@ -235,19 +249,22 @@ int scheduler(int arg_size, char* scripts[], char policy[]) {
                     }
                     */
 
+                while (feof(p)) {
+                    lineNumInt++;
+                }
+
                 fclose(p);
-                create_pcb(start, lineNumInt-1, pagetable);
+                create_pcb(start, lineNumInt, pagetable);
                 //print_PCBs_pid();
                 //print_all_pcbs();
-
             }
         }
     }
-
-    //print_all_pcbs();
-    //print_mem(); 
+    
+    print_all_pcbs();
+    print_mem(); 
     //print_frame_store();
-    //exit(1);
+    exit(1);
 
     //} 
 

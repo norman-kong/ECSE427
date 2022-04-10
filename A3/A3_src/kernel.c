@@ -14,9 +14,10 @@ struct PCB {
     int length; // # of lines the program is
 	int pc; // current instruction to execute
     int jLengthScore; // job length score
+    int pagetable[10]; 
 };
 
-#define PCB_NUM 3
+#define PCB_NUM 4   // CHANGE THIS BEFORE SUBMISSION
 #define MAX_USER_INPUT 1000
 
 struct PCB PCBs[PCB_NUM];
@@ -32,7 +33,7 @@ void runRR(int size);
 void runAGING(int size);
 int get_current_rq_size();
 int process_done(int i);
-void run_command(int i, int size);
+void run_command(int i);
 int rq_isempty(int size);
 void clean(struct PCB pcb);
 void age_rq(int size);
@@ -48,16 +49,38 @@ void PCBs_init(){
 		PCBs[i].length = 0;
         PCBs[i].pc = -1;
         PCBs[i].jLengthScore = 0;
+        for (int k=0; k<10; k++) {
+            PCBs[i].pagetable[k] = -1;
+        }
+
 	} 
 
     current_pid = 1;
 
 }
 
+void print_PCBs_pid() {
+    puts("starting");
+    for (int i=0; i<PCB_NUM; i++){		
+		printf("PID IS: %d\n", PCBs[i].pid);
+	} 
+    puts("done");
+}
+
+// prints all valid PCBs
 void print_all_pcbs(){
-    for (int i=0; i<2; i++) { // search all PCBs
-        printf("pid: %d\nstart: %s\nlength: %d\npc: %d\njLengthScore: %d\n", 
-        PCBs[i].pid, PCBs[i].start, PCBs[i].length, PCBs[i].pc, PCBs[i].jLengthScore);
+    for (int i=0; i<PCB_NUM; i++) { 
+
+        if (PCBs[i].pid != -1) {
+            printf("pid: %d\nstart: %s\nlength: %d\npc: %d\njLengthScore: %d\n", 
+            PCBs[i].pid, PCBs[i].start, PCBs[i].length, PCBs[i].pc, PCBs[i].jLengthScore);
+            puts("pagetable: ");
+            
+            for (int k=0; k<10; k++) {
+                printf("pagetable slot: %d is %d\n", k, PCBs[i].pagetable[k]);
+            }
+        }
+
     }
 }
 
@@ -71,8 +94,8 @@ void print_pcb(int pid) {
     }
 }
 
-void create_pcb(char *start, int length) {
-
+void create_pcb(char *start, int length, int pagetable[]) {
+    
     for (int i=0; i<PCB_NUM; i++) { 
         if (PCBs[i].pid == -1) { // find open slot
             PCBs[i].pid = current_pid;
@@ -80,10 +103,17 @@ void create_pcb(char *start, int length) {
             PCBs[i].length = length;
             PCBs[i].pc = 1;
             PCBs[i].jLengthScore = length;
+
+            for (int k=0; k<10; k++) { // ASSUMPTION: PAGE TABLES ARE OF SIZE 10
+                PCBs[i].pagetable[k] = pagetable[k];
+            }
+        
+            //memcpy(PCBs[i].pagetable, pagetable, sizeof(pagetable)); didn't work for some reason
             break;
         }
     }
     current_pid++; 
+
 }
 
 void rq_init() {
@@ -93,8 +123,6 @@ void rq_init() {
 }
 
 int scheduler(int arg_size, char* scripts[], char policy[]) {
-
-    //print_mem();
 
     // start clean
     rq_init();
@@ -107,103 +135,121 @@ int scheduler(int arg_size, char* scripts[], char policy[]) {
         i = arg_size;
     }
 
-    for (int k=1; k<i; k++) {
+    //for (int k=1; k<i; k++) {
 
-        struct dirent *pDirent;
-        DIR *pDir;
-        pDir = opendir("backing_store/");
-        if (pDir == NULL) {
-            printf ("Cannot open directory '%s'\n", "backing_store/");
-            return 1;
-        }
+    struct dirent *pDirent;
+    DIR *pDir;
+    pDir = opendir("backing_store/");
+    if (pDir == NULL) {
+        printf ("Cannot open directory '%s'\n", "backing_store/");
+        return 1;
+    }
 
-        /* CODE LOADING */
-        // Process each entry
-        while ((pDirent = readdir(pDir)) != NULL) {
-            if (strcmp(pDirent->d_name, ".") != 0) {
-                if (strcmp(pDirent->d_name, "..") != 0) {
+    /* CODE LOADING */
+    // Process each entry
+    while ((pDirent = readdir(pDir)) != NULL) {
+        if (strcmp(pDirent->d_name, ".") != 0) {
+            if (strcmp(pDirent->d_name, "..") != 0) {
 
-                    // OPEN FILE
-                    char path[100] = "backing_store/";
-                    strcat(path, pDirent->d_name);
-	                FILE *p = fopen(path,"rt");  // the program is in a file
-                    
-	                if(p == NULL){
-                        printf("%s\n", "Bad command: File not found");
-		                return 1;
-	                }
+                // OPEN FILE
+                char path[100] = "backing_store/";
+                strcat(path, pDirent->d_name);
+	            FILE *p = fopen(path,"rt");  // the program is in a file
 
-                    // file is empty 
-                    if(feof(p)){
-                        int frame = find_available_frame(); 
-                        for (int i=0; i<3; i++) {
-                            mem_set_val2("","",frame+i); 
-                        }
+                //printf("working on file: %s", pDirent->d_name);
+	                
+                if(p == NULL){
+                    printf("%s\n", "Bad command: File not found");
+	                return 1;
+	            }
+
+                // file is empty 
+                if(feof(p)){
+                    int frame = find_available_frame(); 
+                    for (int i=0; i<3; i++) {
+                        mem_set_val2("","",frame+i); 
                     }
-
-                    // first line num 
-                    int lineNumInt = 1;
-                    char lineNumStr[5];
-                    sprintf(lineNumStr, "%d", lineNumInt);
-
-                    // to get "start"
-                    int first_iteration = 1;
-                    char start[MAX_USER_INPUT]; // holds key of first line
-
-                    while (!feof(p)) { // there is at least 1 line 
-
-                        int frame = find_available_frame();
-
-                        for (int j=0; j<3; j++) {
-
-                            if (feof(p)) { // we have reached the end of the file, fill the rest of the frame
-                                
-                                for (int k=j + (frame*3); k<(frame+1)*3; k++) {
-                                    mem_set_val2("", "", k);
-                                }
-                                break;
-                                
-                            } else {
-                                
-                                char line[MAX_USER_INPUT];
-                                fgets(line,999,p);
-
-                                char var[100]; // var format: filename-Line27
-                                strcpy(var, pDirent->d_name);
-                                strcat(var, "-Line");
-                                strcat(var, lineNumStr); 
-                                char *value = line;
-
-                                if (first_iteration) {
-                                    puts("HERE");
-                                    first_iteration = 0;
-                                    strcpy(start, var);
-                                }
-
-                                mem_set_val2(var, value, frame*FRAME_SIZE+j);
-
-                                // update line num
-                                lineNumInt++;
-                                sprintf(lineNumStr, "%d", lineNumInt);
-                            }
-                        
-                        } 
-                    }
-
-                    fclose(p);
-                    create_pcb(start, lineNumInt-1);
-
-                    //print_all_pcbs();
-
                 }
+
+                // first line num 
+                int lineNumInt = 1;
+                char lineNumStr[5];
+                sprintf(lineNumStr, "%d", lineNumInt);
+
+                // to get "start"
+                int first_iteration = 1;
+                char start[MAX_USER_INPUT]; // holds key of first line
+
+                // page table
+                int pagetable[10] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+                int counter = 0; 
+
+                while (!feof(p)) { // there is at least 1 line 
+
+                    int frame = find_available_frame();
+                    //printf("FRAME IS: %d\n", frame);
+
+                    for (int j=0; j<3; j++) {
+
+                        if (feof(p)) { // we have reached the end of the file, fill the rest of the frame
+                                
+                            for (int k=j + (frame*3); k<(frame+1)*3; k++) {
+                                mem_set_val2("", "", k);
+                            }
+                            break;
+                                
+                        } else {
+                                
+                            char line[MAX_USER_INPUT];
+                            fgets(line,999,p);
+
+                            char var[100]; // var format: filename-Line27
+                            strcpy(var, pDirent->d_name);
+                            strcat(var, "-Line");
+                            strcat(var, lineNumStr); 
+                            char *value = line;
+
+                            if (first_iteration) {
+                                first_iteration = 0;
+                                strcpy(start, var);
+                            }
+
+                            mem_set_val2(var, value, frame*FRAME_SIZE+j);
+
+                            // update line num
+                            lineNumInt++;
+                            sprintf(lineNumStr, "%d", lineNumInt);
+                        }
+                        
+                    } 
+                    //printf("FRAME IS: %d\n", frame);
+                    //printf("COUNTER IS: %d\n", counter);
+                    pagetable[counter] = frame;
+                    counter++;
+                }
+
+                   /*
+                    puts("we are giving it: ");
+                    for (int n=0; n<3; n++) {
+                        printf("%d\n", pagetable[n]);
+                    }
+                    */
+
+                fclose(p);
+                create_pcb(start, lineNumInt-1, pagetable);
+                //print_PCBs_pid();
+                //print_all_pcbs();
+
             }
         }
+    }
 
-        //print_mem();
-        //print_frame_store();
-        //exit(1);
+    //print_all_pcbs();
+    //print_mem(); 
+    //print_frame_store();
+    //exit(1);
 
-    } 
+    //} 
 
     // running code
 
@@ -250,7 +296,7 @@ void runStatic(int size) {
 
         // run processes
         while (!process_done(RQ[i])) {
-            run_command(i, size); 
+            run_command(i); 
         }
         //print_mem();
         clean(PCBs[RQ[i]]);
@@ -269,10 +315,10 @@ void runRR(int size) {
 
             if (!process_done(RQ[i])) {
                 //printf("working on process: %s\n", PCBs[RQ[i]].start);
-                run_command(i, size);
+                run_command(i);
 
                 if (!process_done(RQ[i])) {
-                    run_command(i, size); 
+                    run_command(i); 
                 } else {
                     clean(PCBs[RQ[i]]);
                     RQ[i] = -1;
@@ -299,7 +345,7 @@ void runAGING(int size) {
             bubbleSortScore(RQ, size); // sort RQ
         } else {
             //printf("working on process: %d\n", RQ[0]);
-            run_command(0, size);
+            run_command(0);
             // AGE ALL PROCESSES
             age_rq(get_current_rq_size());
             bubbleSortScore(RQ, size); // sort RQ
@@ -321,8 +367,7 @@ int get_current_rq_size() {
 }
 
 // i is index in RQ 
-// size is number of elements in RQ
-void run_command(int i, int size) {
+void run_command(int i) {
 
     // CONSTRUCT KEY 
     char key[100];
@@ -343,11 +388,29 @@ void run_command(int i, int size) {
     
     //print_all_pcbs();
     //printf("key is: %s\n", key);
-    //printf("command is: %s\n", mem_get_value(key));
 
-    parseInput(mem_get_value(key)); // sends line to interpreter
+    /*
+    if (strcmp(key, "") == 0) {
+        parseInput(mem_get_value(key)); // sends line to interpreter
+        PCBs[RQ[i]].pc++; // go to next line
+    }
+    */
+
+    // dealing with one liners
+    int errorCode = 0;					// zero means no error, default
+	char* commands = strtok(mem_get_value(key), ";"); 
+    //printf("key is: %s\n", key);
+
+	while (commands) {
+        //printf("command is: %s\n", commands);
+		errorCode = parseInput(commands);
+		if (errorCode == -1) exit(99);	// ignore all other errors
+		memset(commands, 0, sizeof(commands));
+		commands = strtok(NULL, ";"); // get next command
+	}
+
+    //parseInput(mem_get_value(key)); // sends line to interpreter
     PCBs[RQ[i]].pc++; // go to next line
-    
 
 }
 

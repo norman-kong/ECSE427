@@ -284,8 +284,8 @@ int echo(char* command_arg) {
 
 int set(char* var, char* value){
 
-	mem_set_value(var, value);
-
+	//mem_set_value(var, value);
+	set_var(var, value);
 	return 0;
 }
 

@@ -8,9 +8,9 @@ struct memory_struct{
 };
 
 #define FRAME_SIZE 3 // each page/frame is 3 lines of code
-#define NUM_FRAMES 5  
+#define NUM_FRAMES 10
 #define FRAME_STORE_SIZE (FRAME_SIZE*NUM_FRAMES)
-#define VAR_STORE_SIZE 3 // last VAR_STORE_SIZE lines of the memory are used for tracking variables
+#define VAR_STORE_SIZE 10 // last VAR_STORE_SIZE lines of the memory are used for tracking variables
 #define MEM_SIZE (FRAME_STORE_SIZE + VAR_STORE_SIZE)
 
 int frames[NUM_FRAMES]; // 0 is free, 1 is taken
@@ -65,7 +65,7 @@ void mem_init(){
 int find_available_frame() {
 	for (int i=0; i<NUM_FRAMES; i++) {
 		if (frames[i] == 0) {
-			printf("now using frame: %d\n", i);
+			//printf("now using frame: %d\n", i);
 			frames[i] = 1;
 			return i;
 		}
@@ -82,7 +82,7 @@ void print_frame_store() {
  
 // sets an entry with var_in, value_in, in slot spot
 void mem_set_val2(char *key, char *val, int spot) {
-	printf("ADDING KEY: %s to spot: %d\n", key, spot);
+	//printf("ADDING KEY: %s to spot: %d\n", key, spot);
 
 	shellmemory[spot].var = strdup(key);
 	shellmemory[spot].value = strdup(val);
@@ -130,6 +130,32 @@ int mem_set_value(char *var_in, char *value_in) {
 
 }
 
+// set var in variable store 
+int set_var(char *var_in, char *value_in) {
+	
+	int i;
+
+	for (i=MEM_SIZE-VAR_STORE_SIZE; i<MEM_SIZE; i++){
+		if (strcmp(shellmemory[i].var, var_in) == 0){
+			shellmemory[i].value = strdup(value_in);
+			return 0;
+		} 
+	}
+
+	//Value does not exist, need to find a free spot.
+	for (i=MEM_SIZE-VAR_STORE_SIZE; i<MEM_SIZE; i++){
+		if (strcmp(shellmemory[i].var, "none") == 0){
+			shellmemory[i].var = strdup(var_in);
+			shellmemory[i].value = strdup(value_in);
+			return 0;
+		} 
+	}
+
+	printf("%s\n", "Code loading error");
+	return 1;
+
+}
+
 void print_mem() {
 	puts("MEMORY IS CURRENTLY: ");
 	int frame = 0;
@@ -157,4 +183,9 @@ char *mem_get_value(char *var_in) {
 	}
 	return "Variable does not exist";
 
+}
+
+//get value at slot i
+char *get_value(int slot) {
+	return shellmemory[slot].value;
 }

@@ -476,6 +476,7 @@ void run_command(int i) {
     }
     */
 
+    // 
     if (PCBs[RQ[i]].pc > PCBs[RQ[i]].length) {
         return;
     }

@@ -8,17 +8,19 @@ struct memory_struct{
 };
 
 #define FRAME_SIZE 3 // each page/frame is 3 lines of code
-#define NUM_FRAMES 10
+#define NUM_FRAMES (FRAME_MEM_SIZE/3)
 #define FRAME_STORE_SIZE (FRAME_SIZE*NUM_FRAMES)
-#define VAR_STORE_SIZE 10 // last VAR_STORE_SIZE lines of the memory are used for tracking variables
+#define VAR_STORE_SIZE VAR_MEM_SIZE // last VAR_STORE_SIZE lines of the memory are used for tracking variables
 #define MEM_SIZE (FRAME_STORE_SIZE + VAR_STORE_SIZE)
+
+//int mem_size = FRAME_MEM_SIZE/3;
 
 int frames[NUM_FRAMES]; // 0 is free, 1 is taken
 struct memory_struct shellmemory[MEM_SIZE];
 
-
 void resetmem() {
 	for (int i= (MEM_SIZE - VAR_STORE_SIZE) ; i<MEM_SIZE; i++) {
+		//puts("RESET_MEM");
 		shellmemory[i].var = "none";
 		shellmemory[i].value = "none";
 	}
@@ -50,7 +52,8 @@ char *extract(char *model) {
 // Shell memory functions
 
 void mem_init(){
-
+	
+	//puts("MEM_INIT");
 	int i;
 	for (i=0; i<MEM_SIZE; i++){		
 		shellmemory[i].var = "none";
@@ -63,6 +66,7 @@ void mem_init(){
 
 // finds the next available frame and sets it to unavailable
 int find_available_frame() {
+
 	for (int i=0; i<NUM_FRAMES; i++) {
 		if (frames[i] == 0) {
 			//printf("now using frame: %d\n", i);
@@ -70,7 +74,9 @@ int find_available_frame() {
 			return i;
 		}
 	}
-	puts("NO FRAMES AVAILABLE");
+	//print_frame_store();
+	//puts("NO FRAMES AVAILABLE");
+	return -1;
 }
 
 void print_frame_store() {
@@ -90,6 +96,8 @@ void mem_set_val2(char *key, char *val, int spot) {
 
 // clears [length] lines in memory starting from [start]
 void mem_clear(char start[], int length) {
+
+	//puts("MEM_CLEAR");
 	for (int i=0; i<MEM_SIZE; i++) {		
 		if (strcmp(shellmemory[i].var, start) == 0) { // find first line
 			shellmemory[i].var = "none";
@@ -102,6 +110,11 @@ void mem_clear(char start[], int length) {
 			break;
 		}
 	}
+}
+
+void clear_entry(int i) {
+	shellmemory[i].var = "none";
+	shellmemory[i].value = "none";
 }
 
 // Set key value pair
@@ -159,7 +172,7 @@ int set_var(char *var_in, char *value_in) {
 void print_mem() {
 	puts("MEMORY IS CURRENTLY: ");
 	int frame = 0;
-	for (int i = 0; i<MEM_SIZE; i++){
+	for (int i = 0; i<FRAME_STORE_SIZE; i++){
 
 		if (i % 3 == 0) {
 			printf("FRAME NUMBER: %d\n", frame);
@@ -185,7 +198,17 @@ char *mem_get_value(char *var_in) {
 
 }
 
-//get value at slot i
-char *get_value(int slot) {
-	return shellmemory[slot].value;
+// returns 1 if key is in mem, 0 otherwise 
+int in_mem(char *var_in) {
+	for (int i=0; i<MEM_SIZE; i++){
+		if (strcmp(shellmemory[i].var, var_in) == 0){
+			return 1;
+		} 
+	}
+	return 0;
+}
+
+// gets the value at index i
+char *get_val_at_index(int index) {
+	return shellmemory[index].value;
 }

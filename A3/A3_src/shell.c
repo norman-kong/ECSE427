@@ -7,11 +7,6 @@
 #include "shellmemory.h"
 #include "kernel.h"
 
-#define FRAME_SIZE 3 // each page/frame is 3 lines of code
-#define NUM_FRAMES 6
-#define FRAME_STORE_SIZE (FRAME_SIZE*NUM_FRAMES)
-#define VAR_STORE_SIZE 10 // last VAR_STORE_SIZE lines of the memory are used for tracking variables
-
 int MAX_USER_INPUT = 1000;
 int parseInput(char ui[]);
 
@@ -20,7 +15,7 @@ int main(int argc, char *argv[]) {
 
 	printf("%s\n", "Shell version 1.1 Created January 2022");
 	help();
-	printf("Frame Store Size = %d; Variable Store Size = %d\n", FRAME_STORE_SIZE, VAR_STORE_SIZE);
+	printf("Frame Store Size = %d; Variable Store Size = %d\n", FRAME_MEM_SIZE, VAR_MEM_SIZE);
 
 	char prompt = '$';  				// Shell prompt
 	char userInput[MAX_USER_INPUT];		// user's input stored here

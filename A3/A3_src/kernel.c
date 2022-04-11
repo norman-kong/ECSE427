@@ -267,7 +267,7 @@ int scheduler(int arg_size, char* scripts[], char policy[]) {
     }
 
     //print_all_pcbs();
-    print_mem(); 
+    //print_mem(); 
     //print_frame_store();
     //exit(1);
     //print_frame_store();
@@ -337,34 +337,38 @@ void runStatic(int size) {
 void runRR(int size) {
 
     while (!rq_isempty(size)) {
+
+        int i = 0;
         
-        for (int i=0; i<size; i++) { // iterate through all processes in RQ
+        //for (int i=0; i<size; i++) { // iterate through all processes in RQ
 
             //printf("looking at process: %d\n", RQ[i]);
 
-            if (RQ[i] != -1) {
+            //if (RQ[i] != -1) {
                 
-            
-
                 if (!process_done(RQ[i])) {
                     //printf("working on process: %s\n", PCBs[RQ[i]].start);
                     run_command(i);
+                    run_command(i);
 
-                    if (!process_done(RQ[i])) { 
-                        run_command(i); 
-                    } else {
+                    //if (!process_done(RQ[i])) { 
+                        //run_command(i); 
+                        push_to_end(i, PCB_NUM);
+                    //} else {
                         //clean(PCBs[RQ[i]]);
-                        RQ[i] = -1;
-                    }
+                       // RQ[i] = -1;
+                        //fix_rq();
+                    //}
 
                 } else {
                     //clean(PCBs[RQ[i]]);
                     RQ[i] = -1;
+                    fix_rq();
                 }
 
-            } 
+            //} 
 
-        }
+        //}
     }		
     //print_mem();
 }
@@ -402,6 +406,60 @@ int get_current_rq_size() {
     return size;
 }
 
+// i is the index of the process you want to push to the end
+void push_to_end(int i, int size){
+    
+    int new[size]; 
+
+    for (int w=0;w<size;w++) {
+        new[w] = -1;
+    }
+
+    // copying elements before i
+    for (int k=0; k<i; k++) {
+        new[k] = RQ[k];
+    }
+
+    // copying elements after i
+    for (int k=i; k<size; k++) {
+        if (RQ[k+1] == -1) {
+            for (int g=k; g<size; g++) {
+                new[g] = -1;
+            }
+            break;
+        }
+        new[k] = RQ[k+1];
+    }
+/*
+    for (int d=0;d<size;d++) {
+        printf("INTERMEDIATE IS: %d\n", new[d]);
+    }
+*/
+    // placing the element at the back
+    for (int n=0; n<size; n++) {
+        if (new[n] == -1) {
+            new[n] = RQ[i];
+            break;
+        }
+    }
+
+    // update RQ
+    for (int m=0; m<size; m++) {
+        RQ[m] = new[m];
+    }
+}
+
+void print_rq() {
+    puts("PRINTING RQ");
+	for (int i=0; i<PCB_NUM; i++) {
+        printf("result is: %d\n", RQ[i]);
+        //if (RQ[i] != -1) {
+        //    puts(PCBs[RQ[i]].start);
+        //}
+	}
+    puts("DONE PRINTING RQ");
+}
+
 // i is index in RQ 
 void run_command(int i) {
 
@@ -411,13 +469,20 @@ void run_command(int i) {
     //print_all_pcbs();
     //printf("START IS: %s\n", PCBs[RQ[i]].start);
 
+    /*
     if (strcmp(PCBs[RQ[i]].start, "-1") == 0) {
         PCBs[RQ[i]].pc++; // go to next line
         return;
     }
+    */
+
+    if (PCBs[RQ[i]].pc > PCBs[RQ[i]].length) {
+        return;
+    }
 
     // Remove line number
-    //puts(PCBs[RQ[i]].start);
+    //printf("start is: %s\n", PCBs[RQ[i]].start);
+
     //puts("BEFORE /////////////////////////////////////////////////////");
     //print_all_pcbs();
     char temp[100];
@@ -438,26 +503,22 @@ void run_command(int i) {
 
     //print_mem();
     //printf("looking for key: %s\n", key);
-
+    //printf("PC is: %d\n", PCBs[RQ[i]].pc);
     //printf("START IS: %s\n", PCBs[RQ[i]].start);
     //printf("NAME IS: %s\n", name);PCBs[RQ[i]].pc++; // go to next line
     
     // line is not found, load next page 
     if (!(in_mem(key))) {
 
-        //printf("KEY IS: %s\n", key);
+        //printf("COULDNT FIND KEY: %s\n", key);
 
         //puts("BEFORE");
         //print_mem();
-        
-        // find the next page that has to be loaded
-        int current_page = PCBs[RQ[i]].pc / FRAME_SIZE; // page size
-        int next_page = current_page + 1;
 
         // open file from backing store 
 	    FILE *p = fopen(path, "rt");  // the program is in a file
 
-        //printf("working on file: %s", path);
+        //printf("working on file: %s\n", path);
 	                
         if (p == NULL){
             //printf("file is: %s", path);
@@ -467,7 +528,7 @@ void run_command(int i) {
 
         int frame = find_available_frame();
         
-        // PAGE FAULT
+        // LOUD PAGE FAULT
         if (frame == -1) {
 
             //print_mem();
@@ -506,6 +567,8 @@ void run_command(int i) {
                 char key[100]; // CONSTRUCT KEY 
                 char temp[100];
                 strcpy(temp, PCBs[RQ[i]].start);
+                //puts("START IS: ");
+                //puts(PCBs[RQ[i]].start);
                 char *name = strtok(temp, "-");
                 strcpy(key, name);
                 strcat(key, "-Line");
@@ -533,6 +596,9 @@ void run_command(int i) {
 
         //puts("AFTER");
         //print_mem();
+        //print_rq();
+        push_to_end(i, PCB_NUM);
+        //print_rq();
         return;
     }
 
@@ -545,10 +611,11 @@ void run_command(int i) {
 	char* commands = strtok(mem_get_value(key), ";"); 
     //printf("key is: %s\n", key);
 
+    /*
     if (strcmp(commands, "-1") == 0) {
         PCBs[RQ[i]].pc++; // go to next line
         return;
-    }
+    }*/
 
 	while (commands) {
         //printf("command is: %s\n", commands);
@@ -578,6 +645,29 @@ void age_rq(int size) {
 // checks if PCBs[i] is complete
 int process_done(int i) { // takes PCB index
     return (PCBs[i].length < PCBs[i].pc);
+}
+
+void fix_rq() {
+
+    int new[4];
+    int counter = 0;
+
+    for (int i=0; i<4; i++) {
+        if (RQ[i] == -1) {
+            continue;
+        } else {
+            new[counter] = RQ[i];
+            counter++; 
+        }
+    }
+
+    for (int k=counter; k<4; k++) {
+        new[k] = -1;
+    }
+
+    for (int j=0; j<4; j++) {
+        RQ[j] = new[j];
+    }
 }
 
 // perform the bubble sort (ascending order) on RQ
@@ -662,6 +752,7 @@ void mem_clear_pcb(struct PCB pcb) {
 	}
 }
 
+/*
 // size is number of elements in RQ
 void print_rq(int size) {
     puts("RQ IS: \n");
@@ -669,6 +760,7 @@ void print_rq(int size) {
         printf("element %d: %d\n", i, RQ[i]);
     }
 }
+*/
 
 void print_AGING(int size) {
     puts("RQ IS: \n");
@@ -692,4 +784,3 @@ int rq_isempty(int size) {
     }
     return 1;
 }
-

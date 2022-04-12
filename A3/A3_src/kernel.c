@@ -24,6 +24,7 @@ struct PCB PCBs[PCB_NUM];
 int RQ[PCB_NUM];
 
 int current_pid; 
+int page_fault = 0;
 
 char* RemoveDigits(char* input);
 void bubbleSortLength(int array[], int size);
@@ -33,7 +34,7 @@ void runRR(int size);
 void runAGING(int size);
 int get_current_rq_size();
 int process_done(int i);
-void run_command(int i);
+int run_command(int i);
 int rq_isempty(int size);
 void clean(struct PCB pcb);
 void age_rq(int size);
@@ -42,6 +43,7 @@ void mem_clear_pcb(struct PCB pcb);
 void mem_set_val2(char *key, char *val, int spot);
 int find_available_frame();
 char *get_val_at_index(int index);
+void age_LRU();
 
 void PCBs_init(){
     
@@ -109,8 +111,13 @@ void create_pcb(char *start, int length, int pagetable[]) {
             for (int k=0; k<10; k++) { // ASSUMPTION: PAGE TABLES ARE OF SIZE 10
                 PCBs[i].pagetable[k] = pagetable[k];
             }
-        
-            //memcpy(PCBs[i].pagetable, pagetable, sizeof(pagetable)); didn't work for some reason
+
+            for (int k=0; k<10; k++) { // ASSUMPTION: PAGE TABLES ARE OF SIZE 10
+                if (pagetable[k] != -1) {
+                    set_LRU(k, 1);
+                }
+            }
+
             break;
         }
     }
@@ -130,9 +137,6 @@ int scheduler(int arg_size, char* scripts[], char policy[]) {
     rq_init();
     PCBs_init();
 
-    //print_frame_store();
-
-    //print_mem();
 
     int i;
     if (arg_size > 2) { // command is "exec", so skip the last argument
@@ -338,6 +342,9 @@ void runRR(int size) {
 
     while (!rq_isempty(size)) {
 
+    //for (int k=0;k<10;k++) {
+        //print_rq();
+
         int i = 0;
         
         //for (int i=0; i<size; i++) { // iterate through all processes in RQ
@@ -345,29 +352,46 @@ void runRR(int size) {
             //printf("looking at process: %d\n", RQ[i]);
 
             //if (RQ[i] != -1) {
-                
+            
                 if (!process_done(RQ[i])) {
                     //printf("working on process: %s\n", PCBs[RQ[i]].start);
-                    run_command(i);
-                    run_command(i);
+                    int f1 = run_command(i);
 
-                    //if (!process_done(RQ[i])) { 
-                        //run_command(i); 
-                        push_to_end(i, PCB_NUM);
-                    //} else {
-                        //clean(PCBs[RQ[i]]);
-                       // RQ[i] = -1;
-                        //fix_rq();
-                    //}
+                    int f2 = -1;
+                    if (!(page_fault)) {
+                        f2 = run_command(i);
+
+                        // reset age of the frame of the command(s)
+                        if (f1 == f2) {
+                            //printf("RESETTING FRAME: %d\n", f1);
+                            age_LRU(); // age all frames
+                            set_LRU(f1, 1);
+                        } else {
+                            //printf("RESETTING FRAMES: %d, %d\n", f1, f2);
+                            age_LRU(); // age all frames
+                            set_LRU(f1, 1);
+                            set_LRU(f2, 1);
+                        }
+                        
+                    } else {
+                        //printf("RESETTING FRAME: %d\n", f1);
+                        age_LRU(); // age all frames
+                        set_LRU(f1, 1);
+                    }
+
+                    //print_lru();
+                    push_to_end(i, PCB_NUM);
+
 
                 } else {
+                    //puts("HERE");
                     //clean(PCBs[RQ[i]]);
                     RQ[i] = -1;
                     fix_rq();
                 }
 
             //} 
-
+                
         //}
     }		
     //print_mem();
@@ -430,11 +454,7 @@ void push_to_end(int i, int size){
         }
         new[k] = RQ[k+1];
     }
-/*
-    for (int d=0;d<size;d++) {
-        printf("INTERMEDIATE IS: %d\n", new[d]);
-    }
-*/
+
     // placing the element at the back
     for (int n=0; n<size; n++) {
         if (new[n] == -1) {
@@ -453,46 +473,28 @@ void print_rq() {
     puts("PRINTING RQ");
 	for (int i=0; i<PCB_NUM; i++) {
         printf("result is: %d\n", RQ[i]);
-        //if (RQ[i] != -1) {
-        //    puts(PCBs[RQ[i]].start);
-        //}
 	}
     puts("DONE PRINTING RQ");
 }
 
 // i is index in RQ 
-void run_command(int i) {
+// returns the frame in which we were active
+int run_command(int i) {
 
     char key[100]; // CONSTRUCT KEY 
     char path[100] = "backing_store/";
 
-    //print_all_pcbs();
-    //printf("START IS: %s\n", PCBs[RQ[i]].start);
-
-    /*
-    if (strcmp(PCBs[RQ[i]].start, "-1") == 0) {
-        PCBs[RQ[i]].pc++; // go to next line
-        return;
-    }
-    */
-
-    // 
+    // process is done, can't run a command
     if (PCBs[RQ[i]].pc > PCBs[RQ[i]].length) {
-        return;
+        RQ[i] = -1;
+        fix_rq();
+        return -1;
     }
 
-    // Remove line number
-    //printf("start is: %s\n", PCBs[RQ[i]].start);
-
-    //puts("BEFORE /////////////////////////////////////////////////////");
-    //print_all_pcbs();
+    // getting names/key
     char temp[100];
     strcpy(temp, PCBs[RQ[i]].start);
     char *name = strtok(temp, "-");
-    
-    //puts("AFTER /////////////////////////////////////////////////////");
-    //print_all_pcbs();
-    //char *name = PCBs[RQ[i]].start;
     strcpy(key, name);
     strcat(path, name);
     strcat(key, "-Line");
@@ -501,20 +503,11 @@ void run_command(int i) {
     char pc_num[5];
     sprintf(pc_num, "%d", PCBs[RQ[i]].pc);
     strcat(key, pc_num); 
-
-    //print_mem();
-    //printf("looking for key: %s\n", key);
-    //printf("PC is: %d\n", PCBs[RQ[i]].pc);
-    //printf("START IS: %s\n", PCBs[RQ[i]].start);
-    //printf("NAME IS: %s\n", name);PCBs[RQ[i]].pc++; // go to next line
     
-    // line is not found, load next page 
+    // line is not found (and line exists), load next page 
     if (!(in_mem(key))) {
 
-        //printf("COULDNT FIND KEY: %s\n", key);
-
-        //puts("BEFORE");
-        //print_mem();
+        page_fault = 1;
 
         // open file from backing store 
 	    FILE *p = fopen(path, "rt");  // the program is in a file
@@ -523,25 +516,25 @@ void run_command(int i) {
 	                
         if (p == NULL){
             //printf("file is: %s", path);
-            printf("%s\n", "Bad command: File not found");
+            //printf("%s\n", "Bad command: File not found");
             return 1;
         }
 
         int frame = find_available_frame();
-        
+
         // LOUD PAGE FAULT
         if (frame == -1) {
 
             //print_mem();
-            int frame_to_replace = 0; // replace 1st page - TO CHANGE IN NEXT PART
-            puts("Page fault! Victim page contents:");
+            int frame_to_replace = find_frame_to_evict();
+
+            printf("Page fault! Victim page (%d) contents:\n", frame_to_replace);
             for (int g=0; g<FRAME_SIZE; g++) {
                 printf("%s\n", get_val_at_index(frame_to_replace*3 + g));
             }
             puts("End of victim page contents.");
             
-            frame = 0; // TO CHANGE IN NEXT PART
-
+            frame = find_frame_to_evict(); 
             // TODO: UPDATE PAGE TABLE OF VICTIM PROGRAM (actually might not be necessary)
         }
 
@@ -568,8 +561,7 @@ void run_command(int i) {
                 char key[100]; // CONSTRUCT KEY 
                 char temp[100];
                 strcpy(temp, PCBs[RQ[i]].start);
-                //puts("START IS: ");
-                //puts(PCBs[RQ[i]].start);
+
                 char *name = strtok(temp, "-");
                 strcpy(key, name);
                 strcat(key, "-Line");
@@ -579,8 +571,6 @@ void run_command(int i) {
                 sprintf(pc_num, "%d", PCBs[RQ[i]].pc+j);
                 strcat(key, pc_num);              
                 
-                //puts(key);
-                //puts(line);
                 mem_set_val2(key, line, frame*FRAME_SIZE+j);
             }                
         } 
@@ -598,25 +588,20 @@ void run_command(int i) {
         //puts("AFTER");
         //print_mem();
         //print_rq();
-        push_to_end(i, PCB_NUM);
+        //push_to_end(i, PCB_NUM);
         //print_rq();
-        return;
+        //print_lru();
+        return frame;
+    } else {
+        page_fault = 0;
     }
-
     
-    //print_all_pcbs();
-    //printf("key is: %s\n", key);
 
     // dealing with one liners
     int errorCode = 0;					// zero means no error, default
 	char* commands = strtok(mem_get_value(key), ";"); 
     //printf("key is: %s\n", key);
-
-    /*
-    if (strcmp(commands, "-1") == 0) {
-        PCBs[RQ[i]].pc++; // go to next line
-        return;
-    }*/
+    
 
 	while (commands) {
         //printf("command is: %s\n", commands);
@@ -626,8 +611,11 @@ void run_command(int i) {
 		commands = strtok(NULL, ";"); // get next command
 	}
 
-    //parseInput(mem_get_value(key)); // sends line to interpreter
+    //printf("Running key: %s in frame: %d\n", key, get_slot_from_key(key)/3);
+
     PCBs[RQ[i]].pc++; // go to next line
+    //print_lru();
+    return get_slot_from_key(key)/3;
 }
 
 // size is number of elements in RQ
@@ -645,6 +633,8 @@ void age_rq(int size) {
 
 // checks if PCBs[i] is complete
 int process_done(int i) { // takes PCB index
+    //printf("length is: %d\n", PCBs[i].length); 
+    //printf("pc is: %d\n", PCBs[i].pc); 
     return (PCBs[i].length < PCBs[i].pc);
 }
 

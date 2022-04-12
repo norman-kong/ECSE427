@@ -1,16 +1,4 @@
-public testcase notes:
+PLEASE NOTE:
 
-tc1 tc2 intention: 
-                   testing exec command, there is no page fault in this test case, 
-                   each program only have two pages max.
+Our code does not favour any programs in the initialization of the round robin. Hence, given some programs, for example, A, B and C, the round robin may begin as: B, C, A or any other permutation of these programs. Therefore you may need to run a test case several times to receive the same output as your runs. 
 
-tc3 intention: 
-             testing exec command, page fault involved, when using this test case, 
-             make sure there are fewer frames than file's pages.
-
-tc4 intention: 
-               testing exec command. This is the most complex test case, 
-               make sure there are fewer frames than file's pages.
-
-tc5 intention: 
-              testing run command.

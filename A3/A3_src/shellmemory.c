@@ -15,6 +15,7 @@ struct memory_struct{
 
 //int mem_size = FRAME_MEM_SIZE/3;
 
+int LRU[NUM_FRAMES]; 
 int frames[NUM_FRAMES]; // 0 is free, 1 is taken
 struct memory_struct shellmemory[MEM_SIZE];
 
@@ -61,6 +62,20 @@ void mem_init(){
 	}
 	for (i=0; i<NUM_FRAMES; i++) {
 		frames[i] = 0;
+		LRU[i] = -1;
+	}
+}
+
+// sets value at spot i
+void set_LRU(int i, int value) {
+	LRU[i] = value;
+}
+
+void age_LRU() {
+	for (int i=0; i<NUM_FRAMES; i++) {
+		if (LRU[i] != -1) {
+			LRU[i]++;
+		}
 	}
 }
 
@@ -71,6 +86,7 @@ int find_available_frame() {
 		if (frames[i] == 0) {
 			//printf("now using frame: %d\n", i);
 			frames[i] = 1;
+			LRU[i] = 1; // reset it's "age"
 			return i;
 		}
 	}
@@ -211,4 +227,31 @@ int in_mem(char *var_in) {
 // gets the value at index i
 char *get_val_at_index(int index) {
 	return shellmemory[index].value;
+}
+
+int get_slot_from_key(char *key) {
+	for (int i=0; i<MEM_SIZE; i++) {
+		if (strcmp(shellmemory[i].var, key) == 0) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+// returns frame number with largest "age" from LRU
+int find_frame_to_evict() {
+	int max = 0;
+	for (int i=0; i<NUM_FRAMES; i++) {
+		if (LRU[i] > LRU[max]) {
+			max = i;
+		}
+	}
+	return max; 
+}
+
+void print_lru(){
+	for (int i=0;i<NUM_FRAMES;i++) {
+		printf("slot %d has age: %d ", i, LRU[i]);
+	}
+	puts("");
 }
